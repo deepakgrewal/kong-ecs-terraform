@@ -1,0 +1,24 @@
+# Kong Gateway on ECS - Terraform Variables
+# Copy this file to terraform.tfvars and fill in your values
+
+# Project Configuration
+project_name = "mycompany"  # Used for resource naming (e.g., mycompany-kong-vpc)
+environment  = "poc"        # Environment tag (e.g., poc, dev, prod)
+
+# AWS Configuration
+aws_region = "eu-west-1"
+vpc_cidr   = "10.0.0.0/16"
+
+# Konnect Configuration (from Konnect UI > Gateway Manager > Your CP > Data Plane Nodes)
+konnect_cp_endpoint           = "REPLACE_WITH_CP_ENDPOINT"      # e.g., abc123def.eu.cp0.konghq.com:443
+konnect_cp_server_name        = "REPLACE_WITH_CP_SERVER_NAME"   # e.g., abc123def.eu.cp0.konghq.com
+konnect_telemetry_endpoint    = "REPLACE_WITH_TP_ENDPOINT"      # e.g., abc123def.eu.tp0.konghq.com:443
+konnect_telemetry_server_name = "REPLACE_WITH_TP_SERVER_NAME"   # e.g., abc123def.eu.tp0.konghq.com
+
+# Kong Gateway Configuration
+kong_image_tag = "3.9.0.0"
+
+# ECS Configuration
+ecs_task_cpu   = 512   # CPU units
+ecs_task_memory = 1024 # Memory in MB
+desired_count  = 2     # Number of Kong instances

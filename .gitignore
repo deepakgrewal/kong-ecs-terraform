@@ -1,0 +1,13 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform.tfvars.example
+
+# Certificates (sensitive)
+certs/*.crt
+certs/*.key
+
+# OS
+.DS_Store
