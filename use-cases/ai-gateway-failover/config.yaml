@@ -1,0 +1,97 @@
+_format_version: '3.0'
+_info:
+  select_tags:
+    - signify-demo
+_konnect:
+  control_plane_name: Demo
+
+services:
+  - name: signify-ai-failover
+    host: localhost
+    port: 80
+    protocol: http
+    tags:
+      - signify-demo
+
+    routes:
+      - name: signify-ai-failover-route
+        paths:
+          - /ai/chat
+        methods:
+          - POST
+        strip_path: true
+        tags:
+          - signify-demo
+
+    plugins:
+      - name: key-auth
+        tags:
+          - signify-demo
+        config:
+          key_names:
+            - apikey
+            - x-api-key
+
+      - name: ai-proxy-advanced
+        tags:
+          - signify-demo
+        config:
+          balancer:
+            algorithm: round-robin
+            retries: 3
+            max_fails: 2
+            fail_timeout: 30000
+            failover_criteria:
+              - error
+              - timeout
+              - http_429       # Rate limited by provider
+              - http_500       # Server error
+              - http_502       # Bad gateway
+              - http_503       # Service unavailable
+              - non_idempotent # Allow retry on POST requests
+
+          targets:
+            # PRIMARY: OpenAI GPT-4o
+            # Weight 1000 = always tried first
+            - weight: 1000
+              route_type: llm/v1/chat
+              auth:
+                header_name: Authorization
+                header_value: "Bearer REPLACE_WITH_OPENAI_API_KEY"
+              logging:
+                log_statistics: true
+                log_payloads: false
+              model:
+                name: gpt-4o
+                provider: openai
+                options:
+                  max_tokens: 4096
+                  temperature: 0.7
+
+            # FALLBACK: Azure OpenAI GPT-4o
+            # Weight 1 = only used when primary fails
+            - weight: 1
+              route_type: llm/v1/chat
+              auth:
+                header_name: api-key
+                header_value: "REPLACE_WITH_AZURE_OPENAI_API_KEY"
+              logging:
+                log_statistics: true
+                log_payloads: false
+              model:
+                name: gpt-4o
+                provider: azure
+                options:
+                  azure_instance: REPLACE_WITH_AZURE_RESOURCE_NAME
+                  azure_deployment_id: REPLACE_WITH_DEPLOYMENT_NAME
+                  max_tokens: 4096
+                  temperature: 0.7
+
+# Consumer for testing
+consumers:
+  - custom_id: signify-test
+    username: signify-test
+    tags:
+      - signify-demo
+    keyauth_credentials:
+      - key: signify-test-key

@@ -32,6 +32,17 @@ Internet ──────────►│  │  │     Application Load Bal
                     └─────────────────────────────────────────────────────┘
 ```
 
+## Use Cases
+
+Once your Kong Gateway is running on ECS, you can deploy these AI Gateway configurations:
+
+| Use Case | Description |
+|----------|-------------|
+| [AI Gateway Failover](use-cases/ai-gateway-failover/) | OpenAI as primary with automatic failover to Azure OpenAI |
+| [Consumer Token Budgets](use-cases/consumer-budgets/) | Daily token limits per consumer tier |
+
+Each use case includes a `config.yaml` that can be deployed with `deck gateway sync`.
+
 ## Prerequisites
 
 1. AWS account with permissions for VPC, ECS, ALB, IAM, SSM

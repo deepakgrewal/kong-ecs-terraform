@@ -1,0 +1,135 @@
+_format_version: '3.0'
+_info:
+  select_tags:
+    - signify-demo
+_konnect:
+  control_plane_name: Demo
+
+# Consumer Groups with daily token budgets
+consumer_groups:
+  - name: signify-basic
+    tags:
+      - signify-demo
+    plugins:
+      - name: ai-rate-limiting-advanced
+        tags:
+          - signify-demo
+        config:
+          strategy: local
+          window_type: fixed
+          llm_providers:
+            - name: openai
+              window_size:
+                - 86400                # 24 hours = 1 day
+              limit:
+                - 10000                # 10K tokens/day
+
+  - name: signify-premium
+    tags:
+      - signify-demo
+    plugins:
+      - name: ai-rate-limiting-advanced
+        tags:
+          - signify-demo
+        config:
+          strategy: local
+          window_type: fixed
+          llm_providers:
+            - name: openai
+              window_size:
+                - 86400
+              limit:
+                - 50000                # 50K tokens/day
+
+  - name: signify-enterprise
+    tags:
+      - signify-demo
+    plugins:
+      - name: ai-rate-limiting-advanced
+        tags:
+          - signify-demo
+        config:
+          strategy: local
+          window_type: fixed
+          llm_providers:
+            - name: openai
+              window_size:
+                - 86400
+              limit:
+                - 200000               # 200K tokens/day
+
+# Consumers assigned to groups
+consumers:
+  - custom_id: signify-dev-team
+    username: signify-dev-team
+    tags:
+      - signify-demo
+    groups:
+      - name: signify-basic
+    keyauth_credentials:
+      - key: dev-team-key
+
+  - custom_id: signify-analytics
+    username: signify-analytics
+    tags:
+      - signify-demo
+    groups:
+      - name: signify-premium
+    keyauth_credentials:
+      - key: analytics-key
+
+  - custom_id: signify-production
+    username: signify-production
+    tags:
+      - signify-demo
+    groups:
+      - name: signify-enterprise
+    keyauth_credentials:
+      - key: production-key
+
+# Service with AI proxy
+services:
+  - name: signify-ai-budgets
+    host: localhost
+    port: 80
+    protocol: http
+    tags:
+      - signify-demo
+
+    routes:
+      - name: signify-ai-budgets-route
+        paths:
+          - /ai/budget
+        methods:
+          - POST
+        strip_path: true
+        tags:
+          - signify-demo
+
+    plugins:
+      - name: key-auth
+        tags:
+          - signify-demo
+        config:
+          key_names:
+            - apikey
+            - x-api-key
+
+      - name: ai-proxy-advanced
+        tags:
+          - signify-demo
+        config:
+          targets:
+            - route_type: llm/v1/chat
+              auth:
+                header_name: Authorization
+                header_value: "Bearer REPLACE_WITH_OPENAI_API_KEY"
+              logging:
+                log_statistics: true
+                log_payloads: false
+              model:
+                name: gpt-4o-mini
+                provider: openai
+                options:
+                  max_tokens: 1024
+                  temperature: 0.7
