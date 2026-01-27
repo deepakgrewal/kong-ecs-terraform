@@ -109,13 +109,6 @@ The data plane should appear in Konnect under **Gateway Manager** > **Demo** > *
 terraform destroy
 ```
 
-## Cost Estimate
-
-- NAT Gateway: ~$0.045/hour + data transfer
-- ALB: ~$0.0225/hour + LCU charges
-- ECS Fargate: ~$0.04/hour per task (512 CPU, 1GB)
-- Estimated total: ~$100-150/month for POC
-
 ## Troubleshooting
 
 ### Data plane not connecting to Konnect
