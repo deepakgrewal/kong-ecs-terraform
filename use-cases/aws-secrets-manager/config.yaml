@@ -1,0 +1,60 @@
+_format_version: '3.0'
+_info:
+  select_tags:
+    - aws-secrets-manager
+_konnect:
+  control_plane_name: Demo
+
+# AWS Secrets Manager vault backend
+# Kong fetches secrets from AWS at runtime using IAM task role credentials.
+vaults:
+  - name: aws
+    prefix: aws-vault
+    description: AWS Secrets Manager vault backend
+    tags:
+      - aws-secrets-manager
+    config:
+      region: eu-west-1
+      ttl: 60
+      neg_ttl: 10
+      resurrect_ttl: 30
+
+services:
+  - name: ai-vault-demo
+    host: localhost
+    port: 80
+    protocol: http
+    tags:
+      - aws-secrets-manager
+
+    routes:
+      - name: ai-vault-demo-route
+        paths:
+          - /ai/vault-demo
+        methods:
+          - POST
+        strip_path: true
+        tags:
+          - aws-secrets-manager
+
+    plugins:
+      - name: ai-proxy-advanced
+        tags:
+          - aws-secrets-manager
+        config:
+          targets:
+            - route_type: llm/v1/chat
+              auth:
+                # Vault reference — resolved at runtime from AWS Secrets Manager
+                # Secret structure: {"api-key": "Bearer sk-proj-..."}
+                header_name: Authorization
+                header_value: '{vault://aws-vault/kong-demo/openai-api-key/api-key}'
+              logging:
+                log_statistics: true
+                log_payloads: false
+              model:
+                name: gpt-4o-mini
+                provider: openai
+                options:
+                  max_tokens: 1024
+                  temperature: 0.7

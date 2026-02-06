@@ -264,6 +264,41 @@ resource "aws_iam_role" "ecs_task" {
   tags = local.common_tags
 }
 
+# IAM policy for AWS Secrets Manager access (Kong Vault backend)
+data "aws_iam_policy_document" "secrets_manager_read" {
+  statement {
+    actions = [
+      "secretsmanager:GetSecretValue"
+    ]
+    resources = var.secrets_manager_arns
+  }
+}
+
+resource "aws_iam_role_policy" "secrets_manager_read" {
+  count  = length(var.secrets_manager_arns) > 0 ? 1 : 0
+  name   = "secrets-manager-read"
+  role   = aws_iam_role.ecs_task.id
+  policy = data.aws_iam_policy_document.secrets_manager_read.json
+}
+
+# IAM policy for Amazon Bedrock access (Kong AI Gateway)
+data "aws_iam_policy_document" "bedrock_invoke" {
+  statement {
+    actions = [
+      "bedrock:InvokeModel",
+      "bedrock:InvokeModelWithResponseStream"
+    ]
+    resources = var.bedrock_model_arns
+  }
+}
+
+resource "aws_iam_role_policy" "bedrock_invoke" {
+  count  = length(var.bedrock_model_arns) > 0 ? 1 : 0
+  name   = "bedrock-invoke-model"
+  role   = aws_iam_role.ecs_task.id
+  policy = data.aws_iam_policy_document.bedrock_invoke.json
+}
+
 #------------------------------------------------------------------------------
 # Secrets (SSM Parameter Store)
 #------------------------------------------------------------------------------
@@ -356,7 +391,9 @@ resource "aws_ecs_task_definition" "kong" {
       { name = "KONG_LUA_SSL_TRUSTED_CERTIFICATE", value = "system" },
       { name = "KONG_CLUSTER_DP_LABELS", value = "deployment:ecs,env:${var.environment},client:${var.project_name}" },
       { name = "KONG_VITALS", value = "off" },
-      { name = "KONG_STATUS_LISTEN", value = "0.0.0.0:8100" }
+      { name = "KONG_STATUS_LISTEN", value = "0.0.0.0:8100" },
+      # AWS region for Secrets Manager vault backend (Kong uses IAM task role for auth)
+      { name = "AWS_REGION", value = var.aws_region }
     ]
 
     secrets = [

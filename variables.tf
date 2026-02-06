@@ -57,6 +57,26 @@ variable "konnect_telemetry_server_name" {
 }
 
 #------------------------------------------------------------------------------
+# AWS Secrets Manager (Kong Vault Backend)
+#------------------------------------------------------------------------------
+
+variable "secrets_manager_arns" {
+  description = "ARNs of AWS Secrets Manager secrets that Kong can access (for vault backend). Use wildcards for patterns, e.g., arn:aws:secretsmanager:eu-west-1:123456789:secret:kong-*"
+  type        = list(string)
+  default     = []
+}
+
+#------------------------------------------------------------------------------
+# Amazon Bedrock (AI Gateway)
+#------------------------------------------------------------------------------
+
+variable "bedrock_model_arns" {
+  description = "ARNs of Bedrock models that Kong can invoke (for AI Gateway). Use wildcards for all models in a region, e.g., arn:aws:bedrock:us-east-1::foundation-model/* or specific custom imported models."
+  type        = list(string)
+  default     = []
+}
+
+#------------------------------------------------------------------------------
 # Kong Gateway Configuration
 #------------------------------------------------------------------------------
 

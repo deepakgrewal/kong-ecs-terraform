@@ -38,10 +38,51 @@ Once your Kong Gateway is running on ECS, you can deploy these AI Gateway config
 
 | Use Case | Description |
 |----------|-------------|
-| [AI Gateway Failover](use-cases/ai-gateway-failover/) | OpenAI as primary with automatic failover to Azure OpenAI |
-| [Consumer Token Budgets](use-cases/consumer-budgets/) | Daily token limits per consumer tier |
+| [AI Gateway Failover](use-cases/ai-gateway-failover/) | Bedrock Claude 3.5 Sonnet (us-east-1) with cross-region failover to Claude 3 Haiku (us-west-2) |
+| [Consumer Token Budgets](use-cases/consumer-budgets/) | Daily token limits per consumer tier using Bedrock |
+| [Header Rate Limiting](use-cases/header-rate-limiting/) | Per-user, per-agent rate limiting via custom header |
+| [AWS Secrets Manager](use-cases/aws-secrets-manager/) | Store API keys in AWS Secrets Manager with vault references |
+| [Custom OpenAI Endpoints](use-cases/custom-openai-endpoints/) | Route to OpenAI-compatible endpoints (Bedrock Access Gateway, etc.) |
+| [ECS Bedrock Auth](use-cases/ecs-bedrock-auth/) | IAM-based Bedrock authentication (task role or cross-account) |
 
 Each use case includes a `config.yaml` that can be deployed with `deck gateway sync`.
+
+### Deploy Use Cases
+
+```bash
+# Set AWS credentials for deck
+export DECK_AWS_ACCESS_KEY_ID="your-access-key"
+export DECK_AWS_SECRET_ACCESS_KEY="your-secret-key"
+
+# Deploy failover config
+deck gateway sync use-cases/ai-gateway-failover/config.yaml
+
+# Deploy budget config
+deck gateway sync use-cases/consumer-budgets/config.yaml
+```
+
+### Test Scripts
+
+Test scripts are in the `test/` directory:
+
+```bash
+cd test
+
+# Get Kong endpoint from terraform
+export KONG_HOST=$(cd .. && terraform output -raw kong_endpoint)
+
+# Test failover
+./test-failover.sh
+
+# Test all budget tiers
+./test-budgets.sh
+
+# Show rate limit headers
+./test-rate-limits.sh
+
+# Exhaust budget (trigger 429)
+./test-exhaust-budget.sh
+```
 
 ## Prerequisites
 
@@ -99,6 +140,36 @@ curl $(terraform output -raw kong_endpoint)/status
 
 The data plane should appear in Konnect under **Gateway Manager** > **Demo** > **Data Plane Nodes**.
 
+## Optional: AWS Secrets Manager
+
+Enable Kong to fetch secrets from AWS Secrets Manager at runtime.
+
+1. Add secret ARNs to `terraform.tfvars`:
+   ```hcl
+   secrets_manager_arns = [
+     "arn:aws:secretsmanager:eu-west-1:123456789012:secret:kong-demo/*"
+   ]
+   ```
+
+2. Apply: `terraform apply`
+
+3. See [use-cases/aws-secrets-manager/](use-cases/aws-secrets-manager/) for the Kong config.
+
+## Optional: Amazon Bedrock
+
+Enable Kong to call Bedrock models using the ECS task role (no API keys).
+
+1. Add model ARNs to `terraform.tfvars`:
+   ```hcl
+   bedrock_model_arns = [
+     "arn:aws:bedrock:us-east-1::foundation-model/*"
+   ]
+   ```
+
+2. Apply: `terraform apply`
+
+3. See [use-cases/ecs-bedrock-auth/](use-cases/ecs-bedrock-auth/) for the Kong config.
+
 ## Resources Created
 
 | Resource | Description |
@@ -111,6 +182,8 @@ The data plane should appear in Konnect under **Gateway Manager** > **Demo** > *
 | ECS Service | 2 Kong data plane tasks |
 | Security Groups | ALB (80/443), ECS (8000/8443) |
 | IAM Roles | Task execution + task roles |
+| IAM Policy | Secrets Manager access (optional) |
+| IAM Policy | Bedrock invoke (optional) |
 | SSM Parameters | Certificate storage (encrypted) |
 | CloudWatch Logs | /ecs/{project_name}-kong |
 

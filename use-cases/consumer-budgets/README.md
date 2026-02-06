@@ -1,6 +1,6 @@
-# Scenario 3: Consumer Token Budgets
+# Consumer Token Budgets
 
-Daily token limits per consumer tier using AI Rate Limiting Advanced.
+Daily token limits per consumer tier using AI Rate Limiting Advanced with AWS Bedrock.
 
 ## Token Budget Tiers
 
@@ -31,7 +31,7 @@ Request with API Key
 │    Advanced       │
 └───────┬───────────┘
         │
-        ├── Budget OK ──────► Forward to OpenAI
+        ├── Budget OK ──────► Forward to Bedrock (Claude 3 Haiku)
         │
         └── Budget Exceeded ─► HTTP 429 (Too Many Requests)
 ```
@@ -41,37 +41,43 @@ Request with API Key
 - Counts both prompt and completion tokens
 - 24-hour rolling window (`window_size: 86400`)
 - Local strategy (no Redis required for POC)
+- Uses Claude 3 Haiku for cost-effective usage
 
 ## Prerequisites
 
-1. OpenAI API key
-2. Kong Gateway with AI plugins enabled
+1. AWS account with Bedrock access enabled
+2. Model access granted for Claude 3 Haiku in us-east-1
+3. IAM permissions: `bedrock:InvokeModel`
 
 ## Setup
 
-### 1. Configure API Key
+### 1. Configure AWS Credentials
 
-Edit `config.yaml` and replace:
-```yaml
-header_value: "Bearer sk-your-openai-key"
+```bash
+export DECK_AWS_ACCESS_KEY_ID="your-access-key"
+export DECK_AWS_SECRET_ACCESS_KEY="your-secret-key"
 ```
 
 ### 2. Deploy to Konnect
 
 ```bash
-# From project root
-export KONNECT_PAT=$(grep "^KONNECT_PAT=" .konnect.env | cut -d'=' -f2 | tr -d '"')
-
-deck gateway sync clients/signify/3-consumer-budgets/config.yaml
+# From use-cases/consumer-budgets directory
+deck gateway sync config.yaml
 ```
 
 ## Testing
+
+### Get Kong endpoint
+
+```bash
+KONG_HOST=$(cd ../.. && terraform output -raw kong_endpoint)
+```
 
 ### Test each tier
 
 ```bash
 # Basic tier (10K daily limit)
-curl -X POST http://localhost:8000/ai/budget \
+curl -X POST "${KONG_HOST}/ai/budget" \
   -H "Content-Type: application/json" \
   -H "apikey: dev-team-key" \
   -d '{
@@ -81,7 +87,7 @@ curl -X POST http://localhost:8000/ai/budget \
   }'
 
 # Premium tier (50K daily limit)
-curl -X POST http://localhost:8000/ai/budget \
+curl -X POST "${KONG_HOST}/ai/budget" \
   -H "Content-Type: application/json" \
   -H "apikey: analytics-key" \
   -d '{
@@ -91,7 +97,7 @@ curl -X POST http://localhost:8000/ai/budget \
   }'
 
 # Enterprise tier (200K daily limit)
-curl -X POST http://localhost:8000/ai/budget \
+curl -X POST "${KONG_HOST}/ai/budget" \
   -H "Content-Type: application/json" \
   -H "apikey: production-key" \
   -d '{
@@ -101,10 +107,17 @@ curl -X POST http://localhost:8000/ai/budget \
   }'
 ```
 
+Or use the test scripts:
+
+```bash
+cd ../../test
+./test-budgets.sh
+```
+
 ### Check rate limit headers
 
 ```bash
-curl -X POST http://localhost:8000/ai/budget \
+curl -X POST "${KONG_HOST}/ai/budget" \
   -H "Content-Type: application/json" \
   -H "apikey: dev-team-key" \
   -d '{"messages": [{"role": "user", "content": "Hello"}]}' \
@@ -119,8 +132,9 @@ Expected headers:
 ### Exhaust budget (for demo)
 
 Use a prompt that consumes many tokens:
+
 ```bash
-curl -X POST http://localhost:8000/ai/budget \
+curl -X POST "${KONG_HOST}/ai/budget" \
   -H "Content-Type: application/json" \
   -H "apikey: dev-team-key" \
   -d '{
@@ -152,4 +166,4 @@ deck gateway reset --select-tag signify-demo --force
 
 - **Local strategy**: Token counts are per Kong node. For distributed counting across multiple nodes, switch to Redis strategy.
 - **Window reset**: Budget resets 24 hours after first request, not at midnight.
-- **Token counting**: Uses OpenAI's tiktoken for accurate token estimation.
+- **Token counting**: Uses standardized token counting for Bedrock models.

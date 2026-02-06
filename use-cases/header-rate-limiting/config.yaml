@@ -1,0 +1,65 @@
+_format_version: '3.0'
+_info:
+  select_tags:
+    - header-rate-limiting
+_konnect:
+  control_plane_name: Demo
+
+services:
+  - name: ai-header-rate-limited
+    host: localhost
+    port: 80
+    protocol: http
+    tags:
+      - header-rate-limiting
+
+    routes:
+      - name: ai-header-rate-limited-route
+        paths:
+          - /ai/rate-limited
+        methods:
+          - POST
+        strip_path: true
+        tags:
+          - header-rate-limiting
+
+    plugins:
+      - name: ai-proxy-advanced
+        tags:
+          - header-rate-limiting
+        config:
+          balancer:
+            algorithm: round-robin
+          targets:
+            - weight: 100
+              route_type: llm/v1/chat
+              auth:
+                allow_override: false
+                aws_access_key_id: ${{ env "DECK_AWS_ACCESS_KEY_ID" }}
+                aws_secret_access_key: ${{ env "DECK_AWS_SECRET_ACCESS_KEY" }}
+              logging:
+                log_statistics: true
+                log_payloads: false
+              model:
+                name: anthropic.claude-3-haiku-20240307-v1:0
+                provider: bedrock
+                options:
+                  bedrock:
+                    aws_region: us-east-1
+                  input_cost: 50000
+                  output_cost: 50000
+                  max_tokens: 1024
+                  temperature: 1.0
+
+      - name: ai-rate-limiting-advanced
+        tags:
+          - header-rate-limiting
+        config:
+          identifier: header
+          header_name: X-User-Agent-ID
+          llm_providers:
+            - name: bedrock
+              limit:
+                - 100
+              window_size:
+                - 60

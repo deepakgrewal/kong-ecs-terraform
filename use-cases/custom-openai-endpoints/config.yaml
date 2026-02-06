@@ -1,40 +1,32 @@
 _format_version: '3.0'
 _info:
   select_tags:
-    - signify-demo
+    - custom-openai-endpoints
 _konnect:
   control_plane_name: Demo
 
 services:
-  - name: signify-ai-failover
+  - name: ai-custom-openai
     host: localhost
     port: 80
     protocol: http
     tags:
-      - signify-demo
+      - custom-openai-endpoints
 
     routes:
-      - name: signify-ai-failover-route
+      - name: ai-custom-openai-route
         paths:
-          - /ai/chat
+          - /ai/custom
         methods:
           - POST
         strip_path: true
         tags:
-          - signify-demo
+          - custom-openai-endpoints
 
     plugins:
-      - name: key-auth
-        tags:
-          - signify-demo
-        config:
-          key_names:
-            - apikey
-            - x-api-key
-
       - name: ai-proxy-advanced
         tags:
-          - signify-demo
+          - custom-openai-endpoints
         config:
           balancer:
             algorithm: round-robin
@@ -44,39 +36,33 @@ services:
             failover_criteria:
               - error
               - timeout
-              - http_429       # Rate limited / throttled
-              - http_500       # Server error
-              - http_502       # Bad gateway
-              - http_503       # Service unavailable
-              - non_idempotent # Allow retry on POST requests
+              - http_429
+              - http_500
+              - http_502
+              - http_503
+              - non_idempotent
 
           targets:
-            # PRIMARY: Claude 3.5 Sonnet in us-east-1
-            # Weight 1000 = always tried first
+            # PRIMARY: Custom OpenAI-compatible endpoint
+            # Replace REPLACE_WITH_* values with your endpoint details
             - weight: 1000
               route_type: llm/v1/chat
               auth:
-                # Uses IAM role credentials (ECS task role)
-                # Or set via environment variables:
-                #   DECK_AWS_ACCESS_KEY_ID / DECK_AWS_SECRET_ACCESS_KEY
+                header_name: Authorization
+                header_value: "Bearer REPLACE_WITH_API_KEY"
                 allow_override: false
-                aws_access_key_id: ${{ env "DECK_AWS_ACCESS_KEY_ID" }}
-                aws_secret_access_key: ${{ env "DECK_AWS_SECRET_ACCESS_KEY" }}
               logging:
                 log_statistics: true
                 log_payloads: false
               model:
-                name: anthropic.claude-3-5-sonnet-20241022-v2:0
-                provider: bedrock
+                name: REPLACE_WITH_MODEL_NAME
+                provider: openai
                 options:
-                  bedrock:
-                    aws_region: us-east-1
+                  upstream_url: "REPLACE_WITH_ENDPOINT"
                   max_tokens: 4096
                   temperature: 0.7
 
-            # FALLBACK: Claude 3 Haiku in us-west-2
-            # Weight 1 = only used when primary fails
-            # Cross-region failover for resilience
+            # FALLBACK: Standard Bedrock model
             - weight: 1
               route_type: llm/v1/chat
               auth:
@@ -94,12 +80,3 @@ services:
                     aws_region: us-west-2
                   max_tokens: 4096
                   temperature: 0.7
-
-# Consumer for testing
-consumers:
-  - custom_id: signify-test
-    username: signify-test
-    tags:
-      - signify-demo
-    keyauth_credentials:
-      - key: signify-test-key

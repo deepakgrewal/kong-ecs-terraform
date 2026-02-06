@@ -18,6 +18,21 @@ konnect_telemetry_server_name = "REPLACE_WITH_TP_SERVER_NAME"   # e.g., abc123de
 # Kong Gateway Configuration
 kong_image_tag = "3.9.0.0"
 
+# AWS Secrets Manager (Kong Vault Backend)
+# Uncomment to enable Kong access to AWS Secrets Manager for vault references
+# secrets_manager_arns = [
+#   "arn:aws:secretsmanager:eu-west-1:123456789012:secret:kong-demo/*",
+#   "arn:aws:secretsmanager:eu-west-1:123456789012:secret:api-keys/*"
+# ]
+
+# Amazon Bedrock (AI Gateway)
+# Uncomment to enable Kong to invoke Bedrock models via the ECS task role
+# bedrock_model_arns = [
+#   "arn:aws:bedrock:us-east-1::foundation-model/*",                        # All foundation models in us-east-1
+#   "arn:aws:bedrock:us-west-2::foundation-model/*",                        # All foundation models in us-west-2 (failover)
+#   "arn:aws:bedrock:us-east-1:123456789012:imported-model/*"               # Custom imported models
+# ]
+
 # ECS Configuration
 ecs_task_cpu   = 512   # CPU units
 ecs_task_memory = 1024 # Memory in MB

@@ -18,7 +18,7 @@ consumer_groups:
           strategy: local
           window_type: fixed
           llm_providers:
-            - name: openai
+            - name: bedrock
               window_size:
                 - 86400                # 24 hours = 1 day
               limit:
@@ -35,7 +35,7 @@ consumer_groups:
           strategy: local
           window_type: fixed
           llm_providers:
-            - name: openai
+            - name: bedrock
               window_size:
                 - 86400
               limit:
@@ -52,7 +52,7 @@ consumer_groups:
           strategy: local
           window_type: fixed
           llm_providers:
-            - name: openai
+            - name: bedrock
               window_size:
                 - 86400
               limit:
@@ -122,14 +122,19 @@ services:
           targets:
             - route_type: llm/v1/chat
               auth:
-                header_name: Authorization
-                header_value: "Bearer REPLACE_WITH_OPENAI_API_KEY"
+                # Uses IAM role credentials (ECS task role)
+                # Or set via environment variables
+                allow_override: false
+                aws_access_key_id: ${{ env "DECK_AWS_ACCESS_KEY_ID" }}
+                aws_secret_access_key: ${{ env "DECK_AWS_SECRET_ACCESS_KEY" }}
               logging:
                 log_statistics: true
                 log_payloads: false
               model:
-                name: gpt-4o-mini
-                provider: openai
+                name: anthropic.claude-3-haiku-20240307-v1:0
+                provider: bedrock
                 options:
+                  bedrock:
+                    aws_region: us-east-1
                   max_tokens: 1024
                   temperature: 0.7
